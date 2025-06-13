@@ -115,10 +115,8 @@ class SwitchablePrecisionTrainer:
         """Single training step with cascade distillation loss."""
         self.model.train()
         
-        # Get all precision settings sorted by quality (highest to lowest)
-        sorted_settings = sorted(self.precision_settings, key=lambda x: {
-            'high': 3, 'medium': 2, 'low': 1
-        }.get(x, 0), reverse=True)
+        # Assume precision settings are already sorted from highest to lowest quality
+        sorted_settings = self.precision_settings
         
         # Forward pass for all precision settings
         all_outputs = {}
@@ -221,12 +219,10 @@ class SwitchablePrecisionTrainer:
                 
                 # Update progress bar
                 avg_loss = total_loss / (iteration + 1)
-                pbar.set_postfix({
-                    "avg_loss": f"{avg_loss:.4f}",
-                    "high": f"{step_losses.get('high', 0):.3f}",
-                    "medium": f"{step_losses.get('medium', 0):.3f}",
-                    "low": f"{step_losses.get('low', 0):.3f}"
-                })
+                postfix = {"avg_loss": f"{avg_loss:.4f}"}
+                for setting in self.precision_settings:
+                    postfix[setting] = f"{step_losses.get(setting, 0):.3f}"
+                pbar.set_postfix(postfix)
             else:
                 # Original random precision training
                 precision_setting = random.choice(self.precision_settings)
