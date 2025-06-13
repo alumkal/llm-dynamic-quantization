@@ -31,10 +31,13 @@ Where:
 - **Learning Rate**: 5e-5
 - **Max Sequence Length**: 256
 
-### Precision Settings
-1. **High Precision**: 16-bit attention/MLP, LoRA rank=8
-2. **Medium Precision**: 8-bit attention/MLP, LoRA rank=16  
-3. **Low Precision**: 4-bit attention/MLP, LoRA rank=32
+### Precision Settings (4 Configurations)
+1. **16-bit**: 16-bit attention/MLP/LM head, LoRA rank=8
+2. **8-bit**: 8-bit attention/MLP, 16-bit LM head, LoRA rank=12
+3. **6-bit**: 6-bit attention/MLP, 12-bit LM head, LoRA rank=16
+4. **4-bit**: 4-bit attention/MLP, 8-bit LM head, LoRA rank=24
+
+Note: Higher bit allocation for LM head components to maintain output quality.
 
 ## Results
 
@@ -60,11 +63,13 @@ Where:
 ## Technical Achievements
 - ✅ Implemented cascade distillation training following InstantNet paper methodology
 - ✅ Successfully integrated multiple LoRA modules for different bit-widths
-- ✅ Demonstrated simultaneous training across multiple quantization configurations with knowledge distillation
+- ✅ Demonstrated simultaneous training across 4 quantization configurations with knowledge distillation
 - ✅ Used KL divergence for stable teacher-student knowledge transfer
 - ✅ Achieved meaningful compression ratios while maintaining reasonable performance
 - ✅ Created comprehensive evaluation framework
-- ✅ Compared cascade training vs. random precision switching approaches
+- ✅ Removed hard-coded configuration names for flexible precision settings
+- ✅ Implemented dynamic progress tracking for all configurations
+- ✅ Allocated higher bits to LM head for better output quality
 
 ## Code Structure
 ```
@@ -77,7 +82,10 @@ src/
     └── config.py        # Configuration classes
 
 tests/
-└── step3.py            # Complete training and evaluation script
+├── step3.py                    # Original 3-configuration training script
+├── step3_4configs.py          # 4-configuration training with full evaluation
+├── step3_4configs_quick.py    # Quick validation test for 4 configurations
+└── step3_cascade_test.py      # Cascade training validation test
 ```
 
 ## Next Steps
