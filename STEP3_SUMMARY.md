@@ -6,9 +6,22 @@ Successfully implemented and executed Step 3 of the switchable precision quantiz
 ## Implementation Details
 
 ### Key Components
-1. **SwitchablePrecisionTrainer**: Training utility that randomly switches between different precision settings during training
-2. **SQuADEvaluator**: Evaluation utility for assessing model performance on SQuAD dataset
-3. **Multi-LoRA Architecture**: Different LoRA modules activated for different quantization bit-widths
+1. **SwitchablePrecisionTrainer**: Training utility with cascade distillation loss implementation
+2. **Cascade Distillation Training (CDT)**: Following InstantNet paper methodology for simultaneous multi-precision training
+3. **SQuADEvaluator**: Evaluation utility for assessing model performance on SQuAD dataset
+4. **Multi-LoRA Architecture**: Different LoRA modules activated for different quantization bit-widths
+
+### Cascade Distillation Loss
+The implementation follows the InstantNet paper's cascade distillation methodology:
+```
+L_total = (1/N) * Σ L_cascade(Q_i(ω))
+L_cascade(Q_i(ω)) = L_ce(Q_i(ω), labels) + β * Σ L_kl(Q_i(ω), SG(Q_j(ω)))
+```
+Where:
+- Higher precision models serve as teachers for lower precision students
+- KL divergence loss used for knowledge distillation (more stable than MSE)
+- Stop gradient (SG) prevents backpropagation from teachers to students
+- β = 0.1 balances task loss and distillation loss
 
 ### Training Configuration
 - **Model**: GPT-2 (124M parameters)
@@ -45,11 +58,13 @@ Successfully implemented and executed Step 3 of the switchable precision quantiz
 4. **Parameter Efficiency**: Only 6.38% of parameters are trainable (11.1M out of 174.2M)
 
 ## Technical Achievements
-- ✅ Implemented switchable precision training with random configuration selection
+- ✅ Implemented cascade distillation training following InstantNet paper methodology
 - ✅ Successfully integrated multiple LoRA modules for different bit-widths
-- ✅ Demonstrated simultaneous training across multiple quantization configurations
+- ✅ Demonstrated simultaneous training across multiple quantization configurations with knowledge distillation
+- ✅ Used KL divergence for stable teacher-student knowledge transfer
 - ✅ Achieved meaningful compression ratios while maintaining reasonable performance
 - ✅ Created comprehensive evaluation framework
+- ✅ Compared cascade training vs. random precision switching approaches
 
 ## Code Structure
 ```
