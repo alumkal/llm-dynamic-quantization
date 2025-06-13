@@ -74,11 +74,31 @@ def main():
         max_length=256  # Shorter sequences for faster training
     )
     
-    # Train the model
-    print("Starting training...")
-    avg_loss = trainer.train(num_iterations=10)
+    # Train the model with cascade distillation
+    print("Starting training with cascade distillation...")
+    avg_loss_cascade = trainer.train(num_iterations=10, use_cascade=True)
     
-    print(f"\nTraining completed with average loss: {avg_loss:.4f}")
+    print(f"\nCascade training completed with average loss: {avg_loss_cascade:.4f}")
+    
+    # Compare with original random precision training
+    print("\nComparing with original random precision training...")
+    
+    # Reset model to original state for fair comparison
+    sp_model_original = SwitchablePrecisionGPT2Model(model, switchable_config)
+    trainer_original = SwitchablePrecisionTrainer(
+        model=sp_model_original,
+        tokenizer=tokenizer,
+        precision_settings=list(precision_settings.keys()),
+        learning_rate=5e-5,
+        batch_size=2,
+        max_length=256
+    )
+    
+    avg_loss_original = trainer_original.train(num_iterations=10, use_cascade=False)
+    print(f"Original training completed with average loss: {avg_loss_original:.4f}")
+    
+    print(f"\nCascade vs Original: {avg_loss_cascade:.4f} vs {avg_loss_original:.4f}")
+    print(f"Improvement: {((avg_loss_original - avg_loss_cascade) / avg_loss_original * 100):.2f}%")
     
     # Evaluate different precision settings after training
     print("\nEvaluating different precision settings after training:")
