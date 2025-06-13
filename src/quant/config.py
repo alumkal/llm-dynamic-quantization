@@ -1,7 +1,7 @@
 """Configuration for quantization settings."""
 
 from dataclasses import dataclass, field
-from typing import Dict, List
+from typing import Dict, List, Optional
 
 
 @dataclass
@@ -17,9 +17,9 @@ class QuantizationConfig:
     layer_bit_widths: Dict[str, int] = field(default_factory=dict)
 
     # Default bit width for layers not specified in layer_bit_widths
-    default_bit_width: int = 32
+    default_bit_width: Optional[int] = None
 
-    def get_bit_width_for_layer(self, layer_name: str) -> int:
+    def get_bit_width_for_layer(self, layer_name: str) -> Optional[int]:
         """Get bit width for a specific layer.
 
         Args:
@@ -39,7 +39,7 @@ class QuantizationConfig:
         Returns:
             Whether the layer should be quantized (True if specified in config or using default)
         """
-        return self.get_bit_width_for_layer(layer_name) < 32
+        return self.get_bit_width_for_layer(layer_name) is not None
 
     @classmethod
     def create_uniform_config(cls, bit_width: int) -> 'QuantizationConfig':
@@ -67,11 +67,11 @@ class QuantizationConfig:
         return cls(layer_bit_widths=layer_dict.copy(), default_bit_width=default_bit_width)
 
     @classmethod
-    def create_mixed_precision_config(cls, model_layers: List[str],
-                                    attention_bits: int = 8,
-                                    mlp_bits: int = 8,
-                                    lm_head_bits: int = 8,
-                                    default_bit_width: int = 32) -> 'QuantizationConfig':
+    def create_mixed_precision_config(cls,
+                                    attention_bits: Optional[int] = None,
+                                    mlp_bits: Optional[int] = None,
+                                    lm_head_bits: Optional[int] = None,
+                                    default_bit_width: Optional[int] = None) -> 'QuantizationConfig':
         """Create a mixed precision configuration for specific model layers.
 
         Args:
@@ -83,13 +83,12 @@ class QuantizationConfig:
             QuantizationConfig with mixed precision settings
         """
         layer_bit_widths = {}
-
-        for layer_name in model_layers:
-            if 'attn' in layer_name:
-                layer_bit_widths[layer_name] = attention_bits
-            elif 'mlp' in layer_name:
-                layer_bit_widths[layer_name] = mlp_bits
-            elif 'lm_head' in layer_name:
-                layer_bit_widths[layer_name] = lm_head_bits
+        for layer_idx in range(12):
+            layer_name = f'transformer.h.{layer_idx}'
+            layer_bit_widths[f'{layer_name}.attn.c_attn'] = attention_bits
+            layer_bit_widths[f'{layer_name}.attn.c_proj'] = attention_bits
+            layer_bit_widths[f'{layer_name}.mlp.c_fc'] = mlp_bits
+            layer_bit_widths[f'{layer_name}.mlp.c_proj'] = mlp_bits
+        layer_bit_widths['lm_head'] = lm_head_bits
 
         return cls(layer_bit_widths=layer_bit_widths, default_bit_width=default_bit_width)

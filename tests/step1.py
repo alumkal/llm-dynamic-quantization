@@ -23,16 +23,21 @@ def test_different_bit_widths():
     with torch.no_grad():
         original_output = original_model(test_input).logits
 
+    # Create quantized model
+    model = QuantizedGPT2Model(original_model)
+
     # Test different bit widths
     for bit_width in [16, 8, 6, 4, 2]:
-        # Create quantized model
-        config = QuantizationConfig.create_uniform_config(bit_width=bit_width)
-        model = QuantizedGPT2Model("gpt2", config)
-        model.quantize_weights()
-        model.model.eval()
+        # Set quantization config
+        quantization_config = QuantizationConfig.create_mixed_precision_config(
+            attention_bits=bit_width,
+            mlp_bits=bit_width,
+            lm_head_bits=16,
+        )
+        model.set_quantization_config(quantization_config)
 
         with torch.no_grad():
-            quantized_output = model.model.forward(test_input).logits
+            quantized_output = model.forward(test_input).logits
 
         # Calculate KL divergence
         kl = F.kl_div(
@@ -43,7 +48,7 @@ def test_different_bit_widths():
         )
 
         # Get compression ratio
-        compression = model.estimate_memory_savings()['compression_ratio']
+        compression = model.calculate_compression_ratio()
 
         print(f"{bit_width}-bit: Size = {compression:.2f}x, KL Divergence = {kl.item():.6f}")
 
