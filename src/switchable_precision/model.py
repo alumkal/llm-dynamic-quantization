@@ -121,3 +121,8 @@ class SwitchablePrecisionGPT2Model(nn.Module):
     def eval(self):
         """Set the model to evaluation mode."""
         self.model.eval()
+
+    @property
+    def device(self):
+        """Get the device of the model."""
+        return self.model.device
