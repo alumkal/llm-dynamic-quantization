@@ -11,7 +11,7 @@ from typing import Dict, List, Tuple
 import random
 from tqdm import tqdm
 
-from .switchable_precision import SwitchablePrecisionGPT2Model, SwitchablePrecisionConfig
+from . import SwitchablePrecisionGPT2Model, SwitchablePrecisionConfig
 
 
 class SQuADDataset(torch.utils.data.Dataset):
@@ -47,12 +47,15 @@ class SwitchablePrecisionTrainer:
         tokenizer: GPT2Tokenizer,
         precision_settings: List[str],
         learning_rate: float = 5e-5,
+        beta: float = 1,
         batch_size: int = 4,
         max_length: int = 1024
     ):
         self.model = model
         self.tokenizer = tokenizer
         self.precision_settings = precision_settings
+        self.learning_rate = learning_rate
+        self.beta = beta
         self.batch_size = batch_size
         self.max_length = max_length
 
@@ -73,7 +76,7 @@ class SwitchablePrecisionTrainer:
 
         self.optimizer = AdamW(trainable_params, lr=learning_rate)
 
-        print(f"Training {len(trainable_params)} parameter groups")
+        print(f"Training {len(trainable_params)} parameter groups: lr={learning_rate}, beta={beta}")
         total_params = sum(p.numel() for p in trainable_params)
         print(f"Total trainable parameters: {total_params:,}")
 
@@ -119,7 +122,6 @@ class SwitchablePrecisionTrainer:
 
         # Calculate cascade losses
         total_loss = 0.0
-        beta = 0.1  # trade-off parameter for distillation loss
 
         for i, current_setting in enumerate(sorted_settings):
             # Standard cross-entropy loss
@@ -150,7 +152,7 @@ class SwitchablePrecisionTrainer:
                 distill_loss += mse_loss / i
 
             # Combined loss for this precision setting
-            setting_loss = ce_loss + beta * distill_loss
+            setting_loss = ce_loss + self.beta * distill_loss
             all_losses[current_setting] = setting_loss.item()
             total_loss += setting_loss
 

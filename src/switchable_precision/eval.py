@@ -7,7 +7,7 @@ from datasets import load_dataset
 from typing import Dict, List
 from tqdm import tqdm
 
-from .switchable_precision import SwitchablePrecisionGPT2Model
+from . import SwitchablePrecisionGPT2Model
 
 
 class SQuADEvaluator:

@@ -1,4 +1,3 @@
-# filepath: /home/alumkal/storage/llm-dynamic-quantization/tests/step2.py
 from pathlib import Path
 import sys
 import torch

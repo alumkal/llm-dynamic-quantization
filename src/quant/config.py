@@ -92,3 +92,31 @@ class QuantizationConfig:
         layer_bit_widths['lm_head'] = lm_head_bits
 
         return cls(layer_bit_widths=layer_bit_widths, default_bit_width=default_bit_width)
+
+    @classmethod
+    def create_layerwise_config(cls,
+                                attention_bits: List[Optional[int]],
+                                mlp_bits: List[Optional[int]],
+                                lm_head_bits: Optional[int],
+                                default_bit_width: Optional[int] = None) -> 'QuantizationConfig':
+        """Create a layer-wise configuration for specific model layers.
+        Args:
+            attention_bits: List of bit widths for attention layers
+            mlp_bits: List of bit widths for MLP layers
+            lm_head_bits: Bit width for the language model head
+            default_bit_width: Default bit width for unlisted layers
+        Returns:
+            QuantizationConfig with layer-wise settings
+        """
+        def get_bit_width(lst: List[Optional[int]], idx: int) -> Optional[int]:
+            return lst[idx // (12 // len(lst))]
+
+        layer_bit_widths = {}
+        for layer_idx in range(12):
+            layer_name = f'transformer.h.{layer_idx}'
+            layer_bit_widths[f'{layer_name}.attn.c_attn'] = get_bit_width(attention_bits, layer_idx)
+            layer_bit_widths[f'{layer_name}.attn.c_proj'] = get_bit_width(attention_bits, layer_idx)
+            layer_bit_widths[f'{layer_name}.mlp.c_fc'] = get_bit_width(mlp_bits, layer_idx)
+            layer_bit_widths[f'{layer_name}.mlp.c_proj'] = get_bit_width(mlp_bits, layer_idx)
+        layer_bit_widths['lm_head'] = lm_head_bits
+        return cls(layer_bit_widths=layer_bit_widths, default_bit_width=default_bit_width)
