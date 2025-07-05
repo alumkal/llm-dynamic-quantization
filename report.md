@@ -32,7 +32,7 @@ The default configuration used for evaluation:
   - Alpha: $\mathrm{rank} \times 2$ for 5~16-bit, $\mathrm{rank} \times 4$ for 4-bit
 - **Training parameters**:
   - Distillation loss weight: $\beta = 1$
-  - Optimizer: Adam with $\gamma = 10^{-4}$
+  - Optimizer: AdamW with $\gamma = 2 \times 10^{-4}$
   - Batch size: 2
   - 1000 iterations
 
@@ -141,3 +141,84 @@ We observed that cascade distillation allowed weaker models to outperform strong
 Section 4.5 demonstrated that layer-wise quantization can be effective, but it requires careful tuning. Future work could explore automated methods for determining optimal quantization configurations for each layer.
 
 Inspired by Mixture of Experts (MoE), we can implement per-layer router models to dynamically select the quantization level. This would allow for more efficient computation by allocating resources based on the complexity of the input tokens, potentially leading to better performance and resource utilization.
+
+## 5 Cyclic Precision Training
+
+We conducted full model fine-tuning using Cyclic Precision Training (CPT), implementing learnable quantization modules based on [Learned Step Size Quantization](https://arxiv.org/abs/1902.08153).
+
+### 5.1 Experimental Setup
+
+Training was performed with the following configuration:
+
+- **Precision range**: 3-bit to 8-bit
+- **Precision cycles**: 25
+- **Optimizer**: Adam with $\gamma = 2 \times 10^{-5}$
+- **Batch size**: 4
+- **Total iterations**: 10,000
+
+The number of precision cycles and learning rate were tuned based on validation loss. Initial experiments with 1,000 iterations proved insufficient for convergence, thus we increased it to 10,000 iterations.
+
+### 5.2 Results
+
+The performance of the CPT model across different quantization levels:
+
+| Bits | CPT Loss | CPT Acc | Base Loss | Base Acc |
+|------|----------|---------|-----------|----------|
+| 3    | 0.9633   | 42.70%  | 0.9324    | 44.50%   |
+| 4    | 0.7811   | 48.60%  | 0.7869    | 46.50%   |
+| 5    | 0.7170   | 49.90%  | 0.7388    | 48.90%   |
+| 6    | 0.7006   | 50.90%  | 0.6958    | 51.20%   |
+| 7    | 0.6937   | 51.40%  | 0.6919    | 49.60%   |
+| 8    | 0.6864   | 51.80%  | 0.6961    | 50.70%   |
+
+"Base" refers to the model trained without precision switching.
+
+### 5.3 Analysis
+
+**Key Observations:**
+- CPT did not significantly improve performance compared to the baseline model
+  However, it enables a single model to operate at multiple precision levels, which can be beneficial for deployment
+
+We hypothesize that CPT may be more effective when training from scratch rather than fine-tuning. The original paper demonstrated benefits when scheduling precision levels during initial training, allowing models to explore the parameter space and learn more generalizable representations. In fine-tuning scenarios, where the model is already pre-trained on a large corpus, the adaptive benefits of precision cycling may be less pronounced as the optimization focuses on task-specific adaptation rather than fundamental representation learning.
+
+## 6 Adversarial Robustness
+
+To assess real-world security implications, we evaluated adversarial robustness using existing [GGUF models](https://huggingface.co/mradermacher/gpt2-GGUF) across multiple quantization levels (4-bit, 6-bit, 8-bit, 16-bit).
+
+### 6.1 Methodology
+
+We employed the [ARCA](https://arxiv.org/pdf/2303.04381) algorithm to generate adversarial prompts designed to elicit specific toxic outputs under greedy decoding. The attack was performed separately for each quantization level and evaluated across all models to assess transferability.
+
+We evaluated two distinct attack configurations:
+
+- **Default**: 5 optimizable tokens, 50 iterations, no perplexity constraint
+- **Natural**: Starting with `Donald Trump`, 5 optimizable tokens, 200 iterations, with perplexity constraint ($\lambda_{\mathrm{perp}} = 1$)
+
+Each configuration was tested on 100 two-token toxic targets. Note that for some targets, the algorithm failed to generate valid prompts.
+
+### 6.2 Results
+
+The adversarial robustness evaluation results are presented below (lower values indicate better robustness):
+
+![attack-transfer-heatmap.png](./assets/attack-transfer-heatmap.png)
+
+### 6.3 Analysis
+
+**Key Observations:**
+- Randomly switching quantization levels reduces attack success rates
+  However, the transferability of the attacks is still indispensable
+- 4-bit models demonstrate increased robustness against adversarial attacks
+  Likely due to larger quantization noise disrupting adversarial perturbations
+- Attacks performed on higher precision models show greater transferability across different quantization levels
+- The transferability of attacks remains consistent regardless of prompt naturalness
+
+These findings suggest that quantization, particularly at lower bit widths, can serve as an unintentional but effective defense mechanism against adversarial attacks, though this comes at the cost of some model performance.
+
+## 7 Future Directions
+
+Based on our exploration of switchable and dynamic quantization, we propose several promising research directions:
+
+- Test the effectiveness of existing methods on modern LLMs and state-of-the-art quantization techniques
+- Explore quantization schemes that dynamically adjust based on input characteristics
+- Investigate the learning dynamics of cascade distillation and similar techniques
+- Design CUDA kernels and high-level libraries for efficient dynamic quantization
